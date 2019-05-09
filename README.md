@@ -27,7 +27,7 @@ Clone the repository:
 
 ```
 $ cd $GOPATH/src
-$ git checkout url
+$ git checkout https://github.com/esteban24/gofast.git
 ```
 
 ## Build
