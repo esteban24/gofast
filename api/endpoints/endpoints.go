@@ -1,49 +1,87 @@
 package endpoints
 
 import (
+	"encoding/json"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 )
 
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
+type ResponseMessage struct {
+	Status 	int		`json:"status"`
+	Message string	`json:"message"`
+}
+
+func HealthCheck(w http.ResponseWriter, r *http.Request, client http.Client) {
+	var errors []error
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 
-	_, err := io.WriteString(w, `{"status": 200, "alive": true}`)
+	_, writeErr := io.WriteString(w, `{"status": 200, "alive": true}`)
 
-	HandleError(err)
+	errors = append(errors, writeErr)
+	HandleError(errors)
 }
 
-func Ping(w http.ResponseWriter, r *http.Request) {
+func Ping(w http.ResponseWriter, r *http.Request, client http.Client) {
+	var errors []error
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 
-	_, err := io.WriteString(w, `{"status": 200, "message": "pong"}`)
+	_, writeErr := io.WriteString(w, `{"status": 200, "message": "pong"}`)
 
-	HandleError(err)
+	errors = append(errors, writeErr)
+	HandleError(errors)
 }
 
-func TeaPot(w http.ResponseWriter, r *http.Request) {
+func TeaPot(w http.ResponseWriter, r *http.Request, client http.Client) {
+	var errors []error
+
 	w.WriteHeader(http.StatusTeapot)
 	w.Header().Set("Content-Type", "application/json")
 
-	_, err := io.WriteString(w, `{"status": 418, message": "I'm a teapot"}`)
+	_, writeErr := io.WriteString(w, `{"status": 418, message": "I'm a teapot"}`)
 
-	HandleError(err)
+	errors = append(errors, writeErr)
+	HandleError(errors)
 }
 
-func GoFast(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
+func GoFast(w http.ResponseWriter, r *http.Request, client http.Client) {
+	var errors []error
+
+	request, reqErr := http.NewRequest("GET", "http://artii.herokuapp.com/make?text=Gotta%20Go%20Fast!", nil)
+
+	response, clientErr := client.Do(request)
+	body, readErr := ioutil.ReadAll(response.Body)
+
+
+	w.WriteHeader(response.StatusCode)
 	w.Header().Set("Content-Type", "application/json")
 
-	_, err := io.WriteString(w, `{"status": 200, message": "Gotta go fast!"}`)
+	var payload = `{"status":` + strconv.Itoa(response.StatusCode) + `, message":"` + string(body)  + `"}`
 
-	HandleError(err)
+	_, writeErr := io.WriteString(w, payload)
+
+	errors = append(errors, readErr, reqErr, clientErr, writeErr)
+	HandleError(errors)
 }
 
-func HandleError(err error) {
-	if err != nil {
-		log.Fatal(err)
+func HandleError(errors []error) {
+	for _, err := range errors {
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+}
+
+func Normalize(val []byte) ResponseMessage {
+	var message ResponseMessage
+	s, _ := strconv.Unquote(string(val))
+	json.Unmarshal([]byte(s), &message)
+
+	return message
 }

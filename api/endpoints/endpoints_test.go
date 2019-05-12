@@ -1,6 +1,9 @@
 package endpoints
 
 import (
+	"bytes"
+	"gofast/api/mocks"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,9 +16,18 @@ func TestHealthCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	testClient := GetMockClient(
+		t,
+		"http://artii.herokuapp.com/make?text=Gotta%20Go%20Fast!",
+		200,
+		`{"status": 200, message": "Gotta go fast!"}`,
+	)
+
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(HealthCheck)
+	handler := http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+		HealthCheck(w,r, *testClient)
+	})
 
 	// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 	// directly and pass in our Request and ResponseRecorder.
@@ -42,9 +54,18 @@ func TestPing(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	testClient := GetMockClient(
+		t,
+		"http://artii.herokuapp.com/make?text=Gotta%20Go%20Fast!",
+		200,
+		`{"status": 200, message": "Gotta go fast!"}`,
+	)
+
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(Ping)
+	handler := http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+		Ping(w,r, *testClient)
+	})
 
 	// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 	// directly and pass in our Request and ResponseRecorder.
@@ -71,9 +92,18 @@ func TestTeaPot(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	testClient := GetMockClient(
+		t,
+		"http://artii.herokuapp.com/make?text=Gotta%20Go%20Fast!",
+		200,
+		`{"status": 200, message": "Gotta go fast!"}`,
+	)
+
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(TeaPot)
+	handler := http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+		TeaPot(w,r, *testClient)
+	})
 
 	// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 	// directly and pass in our Request and ResponseRecorder.
@@ -102,7 +132,17 @@ func TestGoFast(t *testing.T) {
 
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(GoFast)
+
+	testClient := GetMockClient(
+		t,
+		"http://artii.herokuapp.com/make?text=Gotta%20Go%20Fast!",
+		200,
+		`Gotta go fast!`,
+		)
+
+	handler := http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+		GoFast(w,r, *testClient)
+	})
 
 	// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 	// directly and pass in our Request and ResponseRecorder.
@@ -115,9 +155,27 @@ func TestGoFast(t *testing.T) {
 	}
 
 	// Check the response body is what we expect.
-	expected := `{"status": 200, message": "Gotta go fast!"}`
+	expected := `{"status":200, message":"Gotta go fast!"}`
 	if rr.Body.String() != expected {
 		t.Errorf("endpoint returned unexpected body: got %v want %v",
 			rr.Body.String(), expected)
 	}
+}
+
+// Function to create MockClient to
+func GetMockClient(t *testing.T, expectedUrl string, expectedStatusCode int, expectedResponse string) *http.Client {
+	testClient := mocks.MockClient(func(req *http.Request) *http.Response {
+		if req.URL.String() != expectedUrl {
+			t.Fatal("Url expected: " + expectedUrl + ", given: " + req.URL.String())
+		}
+		return &http.Response{
+			StatusCode: expectedStatusCode,
+			// Send response to be tested
+			Body:       ioutil.NopCloser(bytes.NewBufferString(expectedResponse)),
+			// Must be set to non-nil value or it panics
+			Header:     make(http.Header),
+		}
+	})
+
+	return testClient
 }
